@@ -1,0 +1,566 @@
+---
+title: "Olimpiadi estive"
+author: "Ross"
+date: "9/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+
+data=read_csv("athlete_events.csv")
+
+data=data%>%filter(Season=="Summer")
+
+importantSports = data %>%
+  filter(!is.na(Medal)) %>%
+  mutate(Number=1) %>%
+  select(Sport, Number) %>%
+  group_by(Sport) %>%
+  summarise(Number = sum(Number)) %>%
+  arrange(desc(Number)) %>%
+  top_n(40)
+
+
+top5sports= importantSports %>%
+  arrange(desc(Number)) %>%
+  top_n(5)
+
+
+importantSports = importantSports %>%
+  select(Sport)
+
+```
+
+## Numero di medaglie per età 
+```{r echo=FALSE}
+library(ggplot2)
+
+
+medalByAge = data %>%
+  select(Age, Medal)  %>%
+  filter(!is.na(Medal)) %>%
+  filter(!is.na(Age)) %>%
+  mutate(Number=1) %>%
+  group_by(Age, Medal) %>%
+  summarise(Number = sum(Number))
+
+ggplot(medalByAge)+
+  ggtitle("Numero di medaglie vinte per ogni età divise per tipologia")+
+  geom_line(mapping = aes(x=Age, y=Number, color=Medal))
+
+```
+
+## Medaglie vinte da un paese in relazione all'età media degli atleti della squadra di quell'anno
+```{r echo=TRUE}
+
+countryAgeByYear = data %>%
+  select(NOC, Age, Year) %>%
+  group_by(NOC, Year) %>%
+  summarise(Age = mean(Age))
+
+countryMedalByYear= data %>%
+  select(NOC, Year, Medal) %>%
+  filter(!is.na(Medal)) %>%
+  mutate(Number=1) %>%
+  select(NOC, Year, Number) %>%
+  group_by(NOC, Year) %>%
+  summarise(Number = sum(Number))
+
+countryAgeAndMedal = left_join(countryMedalByYear, countryAgeByYear)
+
+ggplot(countryAgeAndMedal)+
+  ggtitle("Numero di medaglie vinte da un paese in relazione all'età media della squadra")+
+  geom_point(mapping = aes(x=Age, y=Number))
+
+countryAgeAndMedal%>%
+  filter(Number>400)
+
+
+```
+
+
+## Medaglie vinte dagli atleti nelle varie discipline delle olimpiadi divisi per età
+```{r echo=TRUE}
+data=inner_join(data, importantSports)
+
+sportByAge = data %>%
+  select(Sport, Age, Medal) %>%
+  filter(!is.na(Medal)) %>%
+  mutate(Number=1) %>%
+  select(Sport, Age, Number) %>%
+  group_by(Sport, Age) %>%
+  summarise(Number = sum(Number))
+  
+ggplot(sportByAge)+
+  ggtitle("Distribuzione delle medaglie in base all'età e divise per sport")+
+  geom_point(mapping = aes(x=Age, y=Number))
+
+```
+
+
+
+## Filtro solo i dati di chi ha vinto più di 300 medaglie
+```{r echo=FALSE}
+ggplot(sportByAge%>%filter(Number>=300))+
+  ggtitle("Numero di medaglie vinte (Over 300) distribuite per età e divise per sport")+
+  geom_point(mapping = aes(x=Age, y=Number, color=Sport))
+
+```
+
+
+## Filtro solo i dati delle età maggiori di 50
+```{r echo=FALSE}
+ggplot(sportByAge%>%filter(Age>50))+
+  ggtitle("Numero di medaglie vinte distribuite per età (Over 50) e divise per sport")+
+  geom_point(mapping = aes(x=Age, y=Number, color=Sport))
+
+```
+
+
+## Filtro solo i dati delle età maggiori di 70
+```{r echo=FALSE}
+ggplot(sportByAge%>%filter(Age>70))+
+  ggtitle("Numero di medaglie vinte distribuite per età (Over 70) e divise per sport")+
+  geom_point(mapping = aes(x=Age, y=Number, color=Sport))
+
+```
+
+
+## Filtro solo i dati delle età minori di 19
+```{r echo=FALSE}
+ggplot(sportByAge%>%filter(Age<19))+
+  ggtitle("Numero di medaglie vinte distribuite per età (Under 19) e divise per sport")+
+  geom_point(mapping = aes(x=Age, y=Number, color=Sport))
+
+```
+
+
+## Filtro solo i dati delle età minori di 15
+```{r echo=FALSE}
+ggplot(sportByAge%>%filter(Age<15))+
+  ggtitle("Numero di medaglie vinte distribuite per età (Under 15) e divise per sport")+
+  geom_point(mapping = aes(x=Age, y=Number, color=Sport))
+
+```
+
+
+## Vincitori più giovani e più anziani di medaglie olimpiche
+```{r echo=TRUE}
+data %>%
+  filter(!is.na(Medal) & (Age==10 | Age==73))%>%
+  select(Name, Age, Team, NOC, Year, Sport, Event, Medal)
+
+```
+
+
+
+
+
+## Filtro solo i dati delle discipline con più medaglie
+```{r echo=FALSE}
+
+(top5sports)
+
+
+#ggplot(inner_join(sportByAge, top5sports %>% select(Sport)))+
+#  ggtitle("Medaglie vinte in ogni sport divise per età (Top 5 Sport)")+
+#  geom_point(mapping = aes(x=Age, y=Number, color=Sport))
+
+ggplot(inner_join(sportByAge, top5sports %>% select(Sport)))+
+  ggtitle("Numero di medaglie vinte distribuite per età e divise per sport (Top 5 Sport)")+
+  geom_line(mapping = aes(x=Age, y=Number, color=Sport))
+
+
+```
+
+
+## Analizzo il rapporto altezza peso degli atleti di corsa dei 100 metri
+```{r echo=FALSE}
+atletiVincitori = data %>%
+  filter(Sport=="Athletics") %>%
+  filter(!is.na(Medal)) %>%
+  filter(grepl("100", Event)) %>%
+  filter(!is.na(Height) & !is.na(Weight))
+
+ggplot(atletiVincitori)+
+  ggtitle("Rapporto altezza peso dagli atleti specialità corsa 100 metri (singoli e staffetta)") +
+  geom_point(mapping = aes(x=Height, y=Weight, color=Sex))
+
+```
+
+
+
+## Possiamo ipotizzare un modello sul rapporto altezza peso 
+```{r echo=FALSE}
+library(modelr)
+
+mod100 = lm(Weight~Height, data=atletiVincitori)
+ 
+mod100$coefficients
+
+ggplot(atletiVincitori)+
+  ggtitle("Rapporto altezza peso dagli atleti specialità corsa 100 metri (singoli e staffetta)") + 
+  geom_point(mapping = aes(x=Height, y=Weight, color=Sex)) + 
+  geom_abline(intercept = mod100$coefficients[1], 
+              slope = mod100$coefficients[2], 
+              color = "red")
+
+
+# correlation coefficient
+(r = cor(atletiVincitori$Height, atletiVincitori$Weight))
+
+# coefficient of determination
+# summary(mod100)$r.squared
+
+
+grid = add_predictions(atletiVincitori, mod100)
+
+grid= add_residuals(grid, mod100)
+
+ggplot(grid, aes(Height, resid))+
+  ggtitle("Griglia dei residui del modello sul rapporto altezza peso dagli atleti specialità corsa 100 metri")  +
+  geom_ref_line(h = 0) +
+  geom_point(mapping=aes(color=Sex)) 
+
+```
+
+
+
+
+## Dividiamo anche gli atleti per sesso
+```{r echo=TRUE}
+
+mod100M = lm(Weight~Height, data=(atletiVincitori%>%filter(Sex=="M")))
+mod100F = lm(Weight~Height, data=(atletiVincitori%>%filter(Sex=="F")))
+ 
+mod100$coefficients
+(r = cor(atletiVincitori$Height, atletiVincitori$Weight))
+
+mod100M$coefficients
+(r = cor((atletiVincitori%>%filter(Sex=="M"))$Height, (atletiVincitori%>%filter(Sex=="M"))$Weight))
+
+mod100F$coefficients
+(r = cor((atletiVincitori%>%filter(Sex=="F"))$Height, (atletiVincitori%>%filter(Sex=="F"))$Weight))
+
+ggplot(atletiVincitori%>%filter(Sex=="F")) + 
+  geom_point(mapping = aes(x=Height, y=Weight)) + 
+  geom_abline(intercept = mod100$coefficients[1], 
+              slope = mod100$coefficients[2], 
+              color = "black") +
+  geom_abline(intercept = mod100F$coefficients[1], 
+              slope = mod100F$coefficients[2], 
+              color = "violet")+
+  ggtitle("Modello sul rapporto altezza peso delle atlete femmine specialità corsa 100 metri")
+
+ggplot(atletiVincitori%>%filter(Sex=="M")) + 
+  geom_point(mapping = aes(x=Height, y=Weight)) + 
+  geom_abline(intercept = mod100$coefficients[1], 
+              slope = mod100$coefficients[2], 
+              color = "black") + 
+  geom_abline(intercept = mod100M$coefficients[1], 
+              slope = mod100M$coefficients[2], 
+              color = "blue") +
+  ggtitle("Modello sul rapporto altezza peso dagli atleti maschi specialità corsa 100 metri")
+
+
+```
+
+
+
+## Dedico lo studio del rapporto tra altezza e peso ai soli uomini nei 100m singoli
+```{r echo=FALSE}
+
+atletiMaschi100Singoli = atletiVincitori %>%
+  filter(Sex == "M") %>%
+  filter(!grepl("4 x", Event))
+
+
+mod100MS = lm(Weight~Height, data=atletiMaschi100Singoli)
+mod100MS$coefficients
+
+# correlation coefficient
+(r = cor(atletiMaschi100Singoli$Height, atletiMaschi100Singoli$Weight))
+
+# coefficient of determination
+# summary(mod100MS)$r.squared
+
+
+ggplot(atletiMaschi100Singoli)+
+  ggtitle("Modello sul rapporto altezza peso dagli atleti maschi specialità corsa 100 metri singoli") + 
+  geom_point(mapping = aes(x=Height, y=Weight)) + 
+  geom_abline(intercept = mod100MS$coefficients[1], 
+              slope = mod100MS$coefficients[2], 
+              color = "red")
+
+
+
+grid = add_predictions(atletiMaschi100Singoli, mod100MS)
+
+grid= add_residuals(grid, mod100MS)
+
+ggplot(grid, aes(Height, resid)) +
+  geom_ref_line(h = 0) +
+  geom_point() +
+  ggtitle("Griglia dei residui del modello sul rapporto altezza peso dagli atleti maschi specialità corsa 100 metri singoli")
+
+```
+
+
+## Passo ad analizzare gli atleti del nuoto
+```{r echo=TRUE}
+
+nuotatori = data %>%
+  filter(Sex=="M" & Sport=="Swimming") %>%
+  filter(grepl("Freestyle", Event) | grepl("Butterfly", Event)) %>%
+  filter(!is.na(Weight) & !is.na(Height) & !is.na(Medal) & !grepl("4 x", Event))
+
+stile=nuotatori%>%
+  filter(grepl("Freestyle", Event))%>%
+  mutate(Style = "Freestyle")
+
+delfino=nuotatori%>%
+  filter(grepl("Butterfly", Event))%>%
+  mutate(Style = "Butterfly")
+
+nuotatori = union(stile, delfino)
+
+ggplot(nuotatori)+
+  geom_point(mapping = aes(x=Height, y=Weight, color=Style))+
+  ggtitle("Rapporto altezza peso nuotatori maschi divisi per stile")
+
+nuotatori %>%
+  filter(Height<=160) %>%
+  select(Name, Height) %>%
+  group_by(Name) %>%
+  summarise(Height = mean(Height)) %>%
+  select(Name)
+
+
+```
+
+
+
+## Modello lineare sul rapporto altezza peso atleti nuoto stile delfino
+```{r echo=FALSE}
+nuotatoriDelfino = data %>%
+  filter(Sex=="M" & Sport=="Swimming" & grepl("Butterfly", Event)) %>%
+  filter(!grepl("4 x", Event) & !is.na(Height) & !is.na(Weight) & !is.na(Medal)) %>%
+  select(Name, Height, Weight, Medal)
+
+modNuotoD = lm(Weight~Height, data=nuotatoriDelfino)
+modNuotoD$coefficients
+
+# correlation coefficient
+(r = cor(nuotatoriDelfino$Height, nuotatoriDelfino$Weight))
+
+ggplot(nuotatoriDelfino) + 
+  geom_point(mapping = aes(x=Height, y=Weight, color=Medal)) + 
+  geom_abline(intercept = modNuotoD$coefficients[1], 
+              slope = modNuotoD$coefficients[2], 
+              color = "red")+
+  ggtitle("Modello lineare sul rapporto altezza peso dei nuotatori maschi stile delfino")
+
+```
+
+
+
+## Modello lineare sul rapporto altezza peso atleti nuoto stile libero
+```{r echo=FALSE}
+nuotatoriStilelibero = data %>%
+  filter(Sex=="M" & Sport=="Swimming" & grepl("Freestyle", Event)) %>%
+  filter(!grepl("4 x", Event) & !is.na(Height) & !is.na(Weight) & !is.na(Medal)) %>%
+  select(Name, Height, Weight, Medal)
+
+modNuotoSL = lm(Weight~Height, data=nuotatoriStilelibero)
+modNuotoSL$coefficients
+
+# correlation coefficient
+(r = cor(nuotatoriStilelibero$Height, nuotatoriStilelibero$Weight))
+
+# coefficient of determination
+# summary(modNuotoSL)$r.squared
+
+
+ggplot(nuotatoriStilelibero) + 
+  geom_point(mapping = aes(x=Height, y=Weight, color=Medal)) + 
+  geom_abline(intercept = modNuotoSL$coefficients[1], 
+              slope = modNuotoSL$coefficients[2], 
+              color = "red")+
+  ggtitle("Modello lineare sul rapporto altezza peso dei nuotatori di stile libero")
+
+```
+
+
+## Modello esponenziale sul rapporto altezza peso atleti nuoto stile libero
+```{r echo=FALSE}
+
+nuotatoriStilelibero = nuotatoriStilelibero%>%
+  filter(Height>160) %>%
+  mutate(lheight=log2(Height), lweight=log2(Weight))
+
+modNuotoSL = lm(lweight~lheight, data=nuotatoriStilelibero)
+modNuotoSL$coefficients
+
+# correlation coefficient
+(r = cor(nuotatoriStilelibero$lheight, nuotatoriStilelibero$lweight))
+
+
+ggplot(nuotatoriStilelibero) + 
+  geom_point(mapping = aes(x=lheight, y=lweight, color=Medal)) + 
+  geom_abline(intercept = modNuotoSL$coefficients[1], 
+              slope = modNuotoSL$coefficients[2], 
+              color = "red")+
+  ggtitle("Modello esponenziale sul rapporto altezza peso dei nuotatori di stile libero")
+
+
+grid = data_grid(nuotatoriStilelibero, lheight)
+
+grid = add_predictions(grid, modNuotoSL) 
+
+grid = grid %>%
+  mutate(Height=2^lheight, Pred=2^pred)
+
+ggplot(nuotatoriStilelibero)+
+  geom_point(mapping=aes(x=Height, y=Weight))+
+  geom_line(data = grid, mapping = aes(x=Height, y=Pred))+
+  ggtitle("Modello esponenziale nuotatori stile libero (scala decimale)")
+
+```
+
+
+
+## Analisi approfondita nuotatori stile libero
+
+```{r echo=FALSE}
+
+nuotatoriStilelibero = add_predictions(nuotatoriStilelibero, modNuotoSL)
+
+nuotatoriStilelibero = add_residuals(nuotatoriStilelibero, modNuotoSL)
+
+ggplot(nuotatoriStilelibero, aes(lheight, resid)) + 
+  geom_ref_line(h = 0) +
+  geom_point() +
+  ggtitle("Residui del modello esponenziale nuoto stile libero")
+
+nuotatoriStilelibero = nuotatoriStilelibero %>%
+  filter(resid>-0.2 & resid<0.2)
+
+
+modNuotoSLInf = lm(lweight~lheight, data=nuotatoriStilelibero%>%filter(resid< (-0.1)))
+
+# correlation coefficient
+(r = cor((nuotatoriStilelibero%>%filter(resid<(-0.1)))$lheight, (nuotatoriStilelibero%>%filter(resid<(-0.1)))$lweight))
+
+modNuotoSLSup = lm(lweight~lheight, data=nuotatoriStilelibero%>%filter(resid>0.1))
+
+# correlation coefficient
+(r = cor((nuotatoriStilelibero%>%filter(resid>0.1))$lheight, (nuotatoriStilelibero%>%filter(resid>0.1))$lweight))
+
+gridSup = data_grid(nuotatoriStilelibero, lheight)
+gridSup = add_predictions(gridSup, modNuotoSLSup)%>%
+  mutate(Height=2^lheight, Pred=2^pred)
+
+gridInf = data_grid(nuotatoriStilelibero, lheight)
+gridInf = add_predictions(gridInf, modNuotoSLInf)%>%
+  mutate(Height=2^lheight, Pred=2^pred)
+
+ggplot(nuotatoriStilelibero)+
+  geom_point(mapping=aes(x=Height, y=Weight))+
+  geom_line(data = gridSup, mapping = aes(x=Height, y=Pred))+
+  geom_line(data = gridInf, mapping = aes(x=Height, y=Pred))+
+  ggtitle("Linee di \"confine\" degli atleti vincenti")
+
+
+nuotatoriStileliberoPerdenti = data %>%
+  filter(Sex=="M" & Sport=="Swimming" & grepl("Freestyle", Event)) %>%
+  filter(!grepl("4 x", Event) & !is.na(Height) & !is.na(Weight) & is.na(Medal)) %>%
+  select(Name, Height, Weight)%>%
+  filter(Height>160)
+
+
+ggplot(nuotatoriStileliberoPerdenti)+
+  geom_point(mapping=aes(x=Height, y=Weight))+
+  geom_line(data = gridSup, mapping = aes(x=Height, y=Pred))+
+  geom_line(data = gridInf, mapping = aes(x=Height, y=Pred))+
+  ggtitle("Confronto tra le linee di confine e gli atleti senza medaglie")
+
+```
+
+
+
+
+<hr>
+
+
+
+
+
+## Analisi degli atleti di ciclismo
+```{r echo=FALSE}
+
+ciclisti = data %>%
+  filter(!is.na(Weight) & !is.na(Height) & !is.na(Medal))%>%
+  filter(Sport=="Cycling")
+
+ggplot(ciclisti)+
+  ggtitle("Rapporto altezza peso ciclisti")+
+  geom_point(mapping=aes(x=Height, y=Weight, color=Sex))
+
+ggplot(ciclisti%>%filter(Sex=="M"))+
+  geom_point(mapping=aes(x=Height, y=Weight, color=Event))
+
+```
+
+
+
+## Filtro gli eventi con più medaglie
+```{r echo=FALSE}
+eventiCiclistiImportanti = ciclisti %>%
+  filter(Sex=="M") %>%
+  select(Event) %>%
+  mutate(Number=1) %>%
+  group_by(Event) %>%
+  summarise(Number=sum(Number))%>%
+  arrange(desc(Number))
+
+eventiCiclistiImportanti = pull(eventiCiclistiImportanti, Event)
+
+# eventiCiclistiImportanti[1]
+
+ggplot(ciclisti%>%filter(Sex=="M" & (Event==eventiCiclistiImportanti[1] |  Event==eventiCiclistiImportanti[2]) & Weight>50))+
+  geom_point(mapping=aes(x=(Height), y=(Weight), color=Event))+
+  ggtitle("Rapporto altezza peso ciclisti maschi divisi per evento")
+
+```
+
+
+## Studio i ciclisti dei 4000 metri in pista a squadre
+```{r echo=FALSE}
+ciclistiM4000 = ciclisti %>%
+  filter(Sex=="M" & Event==eventiCiclistiImportanti[1] & Weight>63 & Weight<85) %>%
+  mutate(lweight=(Weight), lheight=(Height))
+  
+modCM4000 = lm(lweight~lheight, data=ciclistiM4000)
+modCM4000$coefficients
+
+# correlation coefficient
+(r = cor(ciclistiM4000$lheight, ciclistiM4000$lweight))
+
+
+ggplot(ciclistiM4000) +
+  ggtitle("Rapporto altezza peso ciclisti 4000 metri in pista a squadre")+ 
+  geom_point(mapping = aes(x=lheight, y=lweight)) + 
+  geom_abline(intercept = modCM4000$coefficients[1], 
+              slope = modCM4000$coefficients[2], 
+              color = "red")
+
+
+```
